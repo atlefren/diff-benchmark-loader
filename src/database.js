@@ -39,20 +39,21 @@ async function createResultsTable(pool, tableName) {
   }
 }
 
-function getSaveResult(pool, tableName) {
-  return function saveResult(id, result) {
-    return pool.connect().then(client => {
-      const query = {
-        text: `INSERT INTO ${tableName} (id, textDiffer, jsonDiffer, binaryDiffer, geomDiffer) VALUES($1, $2, $3, $4, $5)`,
-        values: [id, result.TextDiffer, result.JsonDiffer, result.BinaryDiffer, result.GeomDiffer]
-      };
+async function* getRows(pool, versionsTable, batchSize, numGeoms) {
+  let offset = 0;
 
-      return client
-        .query(query)
-        .then(res => client.release())
-        .catch(err => client.release());
-    });
-  };
+  const shouldContinue = () => (numGeoms != null ? offset < numGeoms : true);
+
+  while (shouldContinue()) {
+    const res = await readVersions(pool, versionsTable, offset, batchSize);
+    if (!res) {
+      break;
+    }
+    for (let row of res) {
+      yield row;
+    }
+    offset += batchSize;
+  }
 }
 
-module.exports = {readVersions, createResultsTable, getSaveResult};
+module.exports = {readVersions, createResultsTable, getRows};

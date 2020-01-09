@@ -1,93 +1,45 @@
 const {Pool} = require('pg');
-const {Timer} = require('process-stopwatch');
-const {readVersions, getSaveResult, createResultsTable} = require('./database');
-const {callBencmarkApi} = require('./api');
-const {queue, getCaller} = require('./queue');
-const {printStats} = require('./stats');
-const {ms2Time} = require('./util');
+const {getRows, createResultsTable} = require('./database');
+const {QueueServiceClient} = require('@azure/storage-queue');
 require('dotenv').config();
 
-async function* getRows(pool, versionsTable, batchSize, numGeoms) {
-  let offset = 0;
+const encode = data =>
+  Buffer.from(
+    JSON.stringify({
+      Id: data.id,
+      InitialVersion: data.initial_version,
+      LastVersion: data.last_version,
+      GeomTable: data.geomTable,
+      ResultTable: data.resultsTable
+    })
+  ).toString('base64');
 
-  const shouldContinue = () => (numGeoms != null ? offset < numGeoms : true);
+async function populateQueue(versionsTable, geomTable, resultsTable, config = {}) {
+  const POSTGRES_CONNECTION_STRING = process.env['CONN_STR'];
+  const STORAGE_CONNECTION_STRING = process.env.QUEUE_CONN_STR || '';
+  const {batchSize = 10, numGeoms = null} = config;
 
-  while (shouldContinue()) {
-    const res = await readVersions(pool, versionsTable, offset, batchSize);
-    if (!res) {
-      break;
-    }
-    for (let row of res) {
-      yield row;
-    }
-    offset += batchSize;
-  }
-}
+  const pool = new Pool({connectionString: POSTGRES_CONNECTION_STRING});
+  const queueServiceClient = QueueServiceClient.fromConnectionString(STORAGE_CONNECTION_STRING);
 
-const Counter = (initial = 0) => {
-  let c = initial;
+  const queueName = `diffqueue`;
+  const queueClient = queueServiceClient.getQueueClient(queueName);
 
-  return {
-    get: () => c,
-    inc: () => c++,
-    dec: () => c--,
-    isMultipleOf: num => c % num === 0
-  };
-};
-
-async function runBenchmark(versionsTable, geomTable, resultsTable, config = {}) {
-  const connectionString = process.env['CONN_STR'];
-  const apiUrl = process.env['BENCHMARK_URL'];
-  const {queueSize = 10, batchSize = 10, numGeoms = null, showStats = true} = config;
-
-  const timer = new Timer();
-  timer.start();
-
-  const pool = new Pool({connectionString});
   await createResultsTable(pool, resultsTable);
-  const saveResult = getSaveResult(pool, resultsTable);
 
-  const complete = () => {
-    pool.end();
-    timer.stop();
-    console.log(`Completed benchmark in ${ms2Time(timer.read().millis)}`);
-    if (showStats) {
-      printStats(resultsTable);
-    }
-  };
-
-  const counter = Counter();
-
-  const done = () => {
-    counter.dec();
-
-    if (counter.isMultipleOf(100)) {
-      console.log(counter.get());
-    }
-    if (counter.get() < 1) {
-      complete();
-    }
-  };
-
-  const callQueue = queue(queueSize);
-
-  for await (const r of getRows(pool, versionsTable, batchSize, numGeoms)) {
-    counter.inc();
-    callQueue.add(
-      getCaller(callBencmarkApi)(apiUrl, geomTable, r),
-      data => {
-        saveResult(r.id, data)
-          .then(() => done())
-          .catch(e => {
-            console.error(e);
-            done();
-          });
-      },
-      err => {
-        console.error(err);
-        done();
+  try {
+    let c = 0;
+    for await (const r of getRows(pool, versionsTable, batchSize, numGeoms)) {
+      // Send a message into the queue using the sendMessage method.
+      await queueClient.sendMessage(encode({...r, geomTable, resultsTable}));
+      c++;
+      if (c % 1000 === 0) {
+        console.log(`Sent ${c}`);
       }
-    );
+    }
+  } catch (e) {
+    console.error(e);
   }
 }
-module.exports = runBenchmark;
+
+module.exports = {populateQueue};
