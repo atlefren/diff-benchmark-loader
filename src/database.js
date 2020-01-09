@@ -1,3 +1,23 @@
+const QueryStream = require('pg-query-stream');
+const stream = require('async-iter-stream');
+
+async function* streamVersions(pool, tableName, numGeoms) {
+  const client = await pool.connect();
+  const query = new QueryStream(
+    numGeoms !== null
+      ? `SELECT id, initial_version, last_version FROM ${tableName} LIMIT ${numGeoms}`
+      : `SELECT id, initial_version, last_version FROM ${tableName}`
+  );
+  const pgstream = client.query(query);
+
+  //release the client when the stream is finished
+  pgstream.on('end', () => client.release(true));
+
+  for await (let x of stream.wrap(pgstream)) {
+    yield x;
+  }
+}
+
 async function readVersions(pool, table, offset, batchSize) {
   const client = await pool.connect();
   try {
@@ -56,4 +76,4 @@ async function* getRows(pool, versionsTable, batchSize, numGeoms) {
   }
 }
 
-module.exports = {readVersions, createResultsTable, getRows};
+module.exports = {readVersions, createResultsTable, getRows, streamVersions};
