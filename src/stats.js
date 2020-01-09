@@ -11,29 +11,30 @@ async function getStats(pool, table) {
       ROUND(avg((textdiffer->>'applyTime')::DECIMAL)::DECIMAL,4) textApply,
       ROUND(avg((textdiffer->>'undoTime')::DECIMAL)::DECIMAL,4) textUndo,
       ROUND(avg((textdiffer->>'patchSize')::DECIMAL)::DECIMAL,0) textSize,
-      bool_and((textdiffer->>'forwardCorrect')::boolean) textForwardCorrect,
-      bool_and((textdiffer->>'undoCorrect')::boolean) textUndoCorrect,
+      ROUND(100 * SUM(CASE WHEN (textdiffer->>'forwardCorrect')::boolean = true THEN 1 ELSE 0 END)::DECIMAL /count(textdiffer)::DECIMAL, 2) textForwardCorrect,
+      ROUND(100 * SUM(CASE WHEN (textdiffer->>'undoCorrect')::boolean = true THEN 1 ELSE 0 END)::DECIMAL /count(textdiffer)::DECIMAL, 2) textUndoCorrect,
 
       ROUND(avg((jsondiffer->>'createTime')::DECIMAL)::DECIMAL,4) jsonCreate,
       ROUND(avg((jsondiffer->>'applyTime')::DECIMAL)::DECIMAL,4) jsonApply,
       ROUND(avg((jsondiffer->>'undoTime')::DECIMAL)::DECIMAL,4) jsonUndo,
       ROUND(avg((jsondiffer->>'patchSize')::DECIMAL)::DECIMAL,0) jsonSize,
-      bool_and((jsondiffer->>'forwardCorrect')::boolean) jsonForwardCorrect,
-      bool_and((jsondiffer->>'undoCorrect')::boolean) jsonUndoCorrect,
+      ROUND(100 * SUM(CASE WHEN (jsondiffer->>'forwardCorrect')::boolean = true THEN 1 ELSE 0 END)::DECIMAL /count(jsondiffer)::DECIMAL, 2) jsonForwardCorrect,
+      ROUND(100 * SUM(CASE WHEN (jsondiffer->>'undoCorrect')::boolean = true THEN 1 ELSE 0 END)::DECIMAL /count(jsondiffer)::DECIMAL, 2) jsonUndoCorrect,
+
 
       ROUND(avg((binarydiffer->>'createTime')::DECIMAL)::DECIMAL,4) binaryCreate,
       ROUND(avg((binarydiffer->>'applyTime')::DECIMAL)::DECIMAL,4) binaryApply,
       ROUND(avg((binarydiffer->>'undoTime')::DECIMAL)::DECIMAL,4) binaryUndo,
       ROUND(avg((binarydiffer->>'patchSize')::DECIMAL)::DECIMAL,0) binarySize,
-      bool_and((binarydiffer->>'forwardCorrect')::boolean) binaryForwardCorrect,
-      bool_and((binarydiffer->>'undoCorrect')::boolean) binaryUndoCorrect,
+      ROUND(100 * SUM(CASE WHEN (binarydiffer->>'forwardCorrect')::boolean = true THEN 1 ELSE 0 END)::DECIMAL /count(binarydiffer)::DECIMAL, 2) binaryForwardCorrect,
+      ROUND(100 * SUM(CASE WHEN (binarydiffer->>'undoCorrect')::boolean = true THEN 1 ELSE 0 END)::DECIMAL /count(binarydiffer)::DECIMAL, 2) binaryUndoCorrect,
 
       ROUND(avg((geomdiffer->>'createTime')::DECIMAL)::DECIMAL,4) geomCreate,
       ROUND(avg((geomdiffer->>'applyTime')::DECIMAL)::DECIMAL,4) geomApply,
       ROUND(avg((geomdiffer->>'undoTime')::DECIMAL)::DECIMAL,4) geomUndo,
       ROUND(avg((geomdiffer->>'patchSize')::DECIMAL)::DECIMAL,0) geomSize,
-      bool_and((geomdiffer->>'forwardCorrect')::boolean) geomForwardCorrect,
-      bool_and((geomdiffer->>'undoCorrect')::boolean) geomUndoCorrect,
+      ROUND(100 * SUM(CASE WHEN (geomdiffer->>'forwardCorrect')::boolean = true THEN 1 ELSE 0 END)::DECIMAL /count(geomdiffer)::DECIMAL, 2) geomForwardCorrect,
+      ROUND(100 * SUM(CASE WHEN (geomdiffer->>'undoCorrect')::boolean = true THEN 1 ELSE 0 END)::DECIMAL /count(geomdiffer)::DECIMAL, 2) geomUndoCorrect,
       count(1) as count
 
 	FROM ${table};`
@@ -50,7 +51,15 @@ async function getStats(pool, table) {
 }
 
 const print = (data, tableName) => {
-  const head = ['Alogrithm', 'Create', 'Apply', 'Undo', 'Size', 'ApplyOk', 'UndoOk'];
+  const head = [
+    'Alogrithm',
+    'Create Time (ms)',
+    'Apply Time (ms)',
+    'Undo  Time (ms)',
+    'Size (bytes)',
+    'ApplyOk (%)',
+    'UndoOk (%)'
+  ];
   const types = ['text', 'json', 'binary', 'geom'];
   const measures = ['create', 'apply', 'undo', 'size', 'forwardcorrect', 'undocorrect'];
 
@@ -64,7 +73,7 @@ const print = (data, tableName) => {
 
   var table = new Table({
     head,
-    colAligns: ['left', 'right', 'right', 'right', 'right', 'left', 'left'],
+    colAligns: ['left', 'right', 'right', 'right', 'right', 'right', 'right'],
     chars: {mid: '', 'left-mid': '', 'mid-mid': '', 'right-mid': ''}
   });
   for (let row of rows) {
@@ -85,6 +94,6 @@ async function printStats(tableName) {
 }
 
 if (require.main === module) {
-  printStats('osm_test.node_results');
+  printStats('osm.way_results');
 }
 module.exports = {printStats};
