@@ -26,8 +26,10 @@ async function populateQueue(versionsTable, geomTable, resultsTable, config = {}
   const queueName = `diffqueue`;
   const queueClient = queueServiceClient.getQueueClient(queueName);
 
+  console.log(`Creating ${resultsTable}`);
   await createResultsTable(pool, resultsTable);
 
+  console.log(`Populating queue with ${numGeoms ? numGeoms : 'all'} rows from ${versionsTable}`);
   let c = 0;
   for await (const version of streamVersions(pool, versionsTable, numGeoms)) {
     queueClient.sendMessage(encode({...version, geomTable, resultsTable})).catch(e => console.error(e));
