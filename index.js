@@ -1,4 +1,4 @@
-const {populateQueue} = require('./src');
+const {populateQueue, populateRestOfQueue} = require('./src');
 
 async function loadTest() {
   //create test tables with 1000 samples each
@@ -11,9 +11,11 @@ async function loadTest() {
 
 async function load() {
   //create test tables with 1000 samples each
-  await populateQueue('osm.point_versions_2', 'osm.nodes', 'osm.point_results');
-  await populateQueue('osm.line_versions', 'osm.ways', 'osm.line_results');
-  await populateQueue('osm.polygon_versions', 'osm.ways', 'osm.polygon_results');
+  //await populateQueue('osm.point_versions_2', 'osm.nodes', 'osm.point_results');
+  //await populateQueue('osm.line_versions', 'osm.ways', 'osm.line_results');
+  //await populateQueue('osm.polygon_versions', 'osm.ways', 'osm.polygon_results');
+  await populateRestOfQueue('osm.line_versions', 'osm.ways', 'osm.line_results');
+  //await populateRestOfQueue('osm.polygon_versions', 'osm.ways', 'osm.polygon_results');
 }
 load();
 

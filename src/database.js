@@ -18,6 +18,26 @@ async function* streamVersions(pool, tableName, numGeoms) {
   }
 }
 
+async function* streamRemainingVersions(pool, versionsTable, resultsTable) {
+  const client = await pool.connect();
+  const query = new QueryStream(`
+  SELECT id, initial_version, last_version
+  FROM ${versionsTable} l 
+  WHERE NOT EXISTS (
+     SELECT  
+     FROM ${resultsTable}
+     WHERE l.id = id
+  );`);
+  const pgstream = client.query(query);
+
+  //release the client when the stream is finished
+  pgstream.on('end', () => client.release(true));
+
+  for await (let x of stream.wrap(pgstream)) {
+    yield x;
+  }
+}
+
 async function readVersions(pool, table, offset, batchSize) {
   const client = await pool.connect();
   try {
@@ -76,4 +96,4 @@ async function* getRows(pool, versionsTable, batchSize, numGeoms) {
   }
 }
 
-module.exports = {readVersions, createResultsTable, getRows, streamVersions};
+module.exports = {readVersions, createResultsTable, getRows, streamVersions, streamRemainingVersions};
