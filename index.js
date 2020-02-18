@@ -16,14 +16,12 @@ async function load() {
   //await populateQueue('osm.point_versions_2', 'osm.nodes', 'osm.point_results');
   //await populateQueue('osm.line_versions', 'osm.ways', 'osm.line_results');
   //await populateQueue('osm.polygon_versions', 'osm.ways', 'osm.polygon_results');
-  await populateRestOfQueue(
-    "osm.line_versions",
-    "osm.ways",
-    "osm.line_results"
-  );
+  await populateQueue("osm.point_versions", "osm.nodes", "point");
+  await populateQueue("osm.line_versions", "osm.ways", "linestring");
+  await populateQueue("osm.polygon_versions", "osm.ways", "polygon");
   //await populateRestOfQueue('osm.polygon_versions', 'osm.ways', 'osm.polygon_results');
 }
-loadTest();
+load();
 
 /*
 populateQueue('osm.line_versions', 'osm.ways', 'osm.linestring_results', {batchSize: 100, numGeoms: 10000});
