@@ -1,7 +1,11 @@
-const {Pool} = require('pg');
-const {createResultsTable, streamVersions, streamRemainingVersions} = require('./database');
-const {QueueServiceClient} = require('@azure/storage-queue');
-require('dotenv').config();
+const { Pool } = require("pg");
+const {
+  createResultsTable,
+  streamVersions,
+  streamRemainingVersions
+} = require("./database");
+const { QueueServiceClient } = require("@azure/storage-queue");
+require("dotenv").config();
 
 const encode = data =>
   Buffer.from(
@@ -10,35 +14,43 @@ const encode = data =>
       InitialVersion: data.initial_version,
       LastVersion: data.last_version,
       GeomTable: data.geomTable,
-      ResultTable: data.resultsTable
+      GeometryType: data.geometryType
     })
-  ).toString('base64');
+  ).toString("base64");
 
 const getQueueClient = () => {
-  const STORAGE_CONNECTION_STRING = process.env.QUEUE_CONN_STR || '';
-  const queueServiceClient = QueueServiceClient.fromConnectionString(STORAGE_CONNECTION_STRING);
+  const STORAGE_CONNECTION_STRING = process.env.QUEUE_CONN_STR || "";
+  const queueServiceClient = QueueServiceClient.fromConnectionString(
+    STORAGE_CONNECTION_STRING
+  );
 
-  const queueName = `diffqueue`;
+  const queueName = `geometrymessagestest`;
   return queueServiceClient.getQueueClient(queueName);
 };
 
 const getPool = () => {
-  const POSTGRES_CONNECTION_STRING = process.env['CONN_STR'];
-  return new Pool({connectionString: POSTGRES_CONNECTION_STRING});
+  const POSTGRES_CONNECTION_STRING = process.env["CONN_STR"];
+  return new Pool({ connectionString: POSTGRES_CONNECTION_STRING });
 };
 
-async function populateQueue(versionsTable, geomTable, resultsTable, config = {}) {
-  const {numGeoms = null} = config;
+async function populateQueue(
+  versionsTable,
+  geomTable,
+  geometryType,
+  config = {}
+) {
+  const { numGeoms = null } = config;
 
   const pool = getPool();
 
-  console.log(`Creating ${resultsTable}`);
-  await createResultsTable(pool, resultsTable);
-
-  console.log(`Populating queue with ${numGeoms ? numGeoms : 'all'} rows from ${versionsTable}`);
+  console.log(
+    `Populating queue with ${
+      numGeoms ? numGeoms : "all"
+    } rows from ${versionsTable}`
+  );
   const iterator = streamVersions(pool, versionsTable, numGeoms);
 
-  populateQueue(iterator, geomTable, resultsTable);
+  dopopulateQueue(iterator, geomTable, geometryType);
 }
 
 async function populateRestOfQueue(versionsTable, geomTable, resultsTable) {
@@ -47,11 +59,13 @@ async function populateRestOfQueue(versionsTable, geomTable, resultsTable) {
   populateQueue(iterator, geomTable, resultsTable);
 }
 
-async function populateQueue(iterator, geomTable, resultsTable) {
+async function dopopulateQueue(iterator, geomTable, geometryType) {
   const queueClient = getQueueClient();
   let c = 0;
   for await (const version of iterator) {
-    queueClient.sendMessage(encode({...version, geomTable, resultsTable})).catch(e => console.error(e));
+    queueClient
+      .sendMessage(encode({ ...version, geomTable, geometryType }))
+      .catch(e => console.error(e));
     c++;
     if (c % 100 === 0) {
       console.log(`Sent ${c}`);
@@ -59,4 +73,4 @@ async function populateQueue(iterator, geomTable, resultsTable) {
   }
 }
 
-module.exports = {populateQueue, populateRestOfQueue};
+module.exports = { populateQueue, populateRestOfQueue };
