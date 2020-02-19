@@ -1,5 +1,7 @@
-const QueryStream = require('pg-query-stream');
-const stream = require('async-iter-stream');
+const QueryStream = require("pg-query-stream");
+const stream = require("async-iter-stream");
+const { Pool } = require("pg");
+require("dotenv").config();
 
 async function* streamVersions(pool, tableName, numGeoms) {
   const client = await pool.connect();
@@ -11,7 +13,7 @@ async function* streamVersions(pool, tableName, numGeoms) {
   const pgstream = client.query(query);
 
   //release the client when the stream is finished
-  pgstream.on('end', () => client.release(true));
+  pgstream.on("end", () => client.release(true));
 
   for await (let x of stream.wrap(pgstream)) {
     yield x;
@@ -31,7 +33,7 @@ async function* streamRemainingVersions(pool, versionsTable, resultsTable) {
   const pgstream = client.query(query);
 
   //release the client when the stream is finished
-  pgstream.on('end', () => client.release(true));
+  pgstream.on("end", () => client.release(true));
 
   for await (let x of stream.wrap(pgstream)) {
     yield x;
@@ -52,7 +54,7 @@ async function readVersions(pool, table, offset, batchSize) {
     client.end();
     return res.rows;
   } catch (e) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
     throw e;
   } finally {
     client.release(true);
@@ -64,15 +66,28 @@ async function createResultsTable(pool, tableName) {
   try {
     const query = `CREATE TABLE IF NOT EXISTS ${tableName} (
       id bigint PRIMARY KEY,
-      textDiffer jsonb,
-      jsonDiffer jsonb,
-      binaryDiffer jsonb,
-      geomDiffer jsonb
+      data jsonb
     )`;
     await client.query(query);
-    await client.query(`TRUNCATE TABLE ${tableName}`);
+    //await client.query(`TRUNCATE TABLE ${tableName}`);
   } catch (e) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release(true);
+  }
+}
+
+async function insertResult(pool, tableName, id, data) {
+  const client = await pool.connect();
+  try {
+    const query = `INSERT INTO ${tableName} (id, data) VALUES ($1, $2)
+    ON CONFLICT (id) DO NOTHING;
+    `;
+    await client.query(query, [id, data]);
+  } catch (e) {
+    await client.query("ROLLBACK");
+    console.log(e);
     throw e;
   } finally {
     client.release(true);
@@ -96,4 +111,17 @@ async function* getRows(pool, versionsTable, batchSize, numGeoms) {
   }
 }
 
-module.exports = {readVersions, createResultsTable, getRows, streamVersions, streamRemainingVersions};
+const getPool = () => {
+  const POSTGRES_CONNECTION_STRING = process.env["CONN_STR"];
+  return new Pool({ connectionString: POSTGRES_CONNECTION_STRING });
+};
+
+module.exports = {
+  readVersions,
+  createResultsTable,
+  getRows,
+  streamVersions,
+  streamRemainingVersions,
+  getPool,
+  insertResult
+};

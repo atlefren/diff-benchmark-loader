@@ -1,6 +1,5 @@
-const { Pool } = require("pg");
 const {
-  createResultsTable,
+  getPool,
   streamVersions,
   streamRemainingVersions
 } = require("./database");
@@ -26,11 +25,6 @@ const getQueueClient = () => {
 
   const queueName = `geometrymessagestest`;
   return queueServiceClient.getQueueClient(queueName);
-};
-
-const getPool = () => {
-  const POSTGRES_CONNECTION_STRING = process.env["CONN_STR"];
-  return new Pool({ connectionString: POSTGRES_CONNECTION_STRING });
 };
 
 async function populateQueue(
