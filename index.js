@@ -21,7 +21,7 @@ async function load() {
   await populateQueue("osm.polygon_versions", "osm.ways", "polygon");
   //await populateRestOfQueue('osm.polygon_versions', 'osm.ways', 'osm.polygon_results');
 }
-loadTest();
+load();
 
 /*
 populateQueue('osm.line_versions', 'osm.ways', 'osm.linestring_results', {batchSize: 100, numGeoms: 10000});
