@@ -23,7 +23,7 @@ const getQueueClient = () => {
     STORAGE_CONNECTION_STRING
   );
 
-  const queueName = `geometrymessagestest`;
+  const queueName = `geometrymessages2`;
   return queueServiceClient.getQueueClient(queueName);
 };
 
@@ -61,6 +61,7 @@ async function dopopulateQueue(iterator, geomTable, geometryType) {
       .sendMessage(encode({ ...version, geomTable, geometryType }))
       .catch(e => console.error(e));
     c++;
+
     if (c % 100 === 0) {
       console.log(`Sent ${c}`);
     }
