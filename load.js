@@ -60,7 +60,7 @@ const main = async () => {
   const tableService = azure.createTableService(process.env["QUEUE_CONN_STR"]);
   const pool = getPool();
   const table = "benchmarkresults4";
-  const query = new azure.TableQuery();
+  const query = new azure.TableQuery().top(500);
   const differs = ["text", "geojson", "binary", "geom"];
   const geomTypes = ["point", "linestring", "polygon"];
 
