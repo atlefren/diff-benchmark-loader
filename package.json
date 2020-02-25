@@ -12,6 +12,7 @@
     "@azure/storage-blob": "^12.1.0",
     "@azure/storage-queue": "^12.0.2",
     "async-iter-stream": "^1.2.0",
+    "azure-storage": "^2.10.3",
     "cli-table": "^0.3.1",
     "dotenv": "^8.2.0",
     "pg": "^7.17.0",

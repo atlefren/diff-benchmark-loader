@@ -65,11 +65,11 @@ async function createResultsTable(pool, tableName) {
   const client = await pool.connect();
   try {
     const query = `CREATE TABLE IF NOT EXISTS ${tableName} (
-      id bigint PRIMARY KEY,
+      id varchar PRIMARY KEY,
       data jsonb
     )`;
     await client.query(query);
-    //await client.query(`TRUNCATE TABLE ${tableName}`);
+    await client.query(`TRUNCATE TABLE ${tableName}`);
   } catch (e) {
     await client.query("ROLLBACK");
     throw e;
