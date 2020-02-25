@@ -34,7 +34,7 @@ const queryEntitiesAsync = async (
 
 async function* iterQuery(tableService, table, query, parse) {
   console.log("start");
-  let count = true;
+  let first = true;
   let continuationToken = null;
   while (continuationToken !== null || first === true) {
     const res = await queryEntitiesAsync(
