@@ -45,7 +45,7 @@ async function* iterQuery(tableService, table, query, parse) {
     );
 
     for (const e of res.entries) {
-      yield parse ? parse(e) : e;
+      yield new Result(parse ? parse(e) : e);
     }
 
     continuationToken = res.continuationToken;
@@ -55,6 +55,24 @@ async function* iterQuery(tableService, table, query, parse) {
 }
 
 const getTable = (differ, geomType) => `results.${differ}_${geomType}`;
+
+class Result {
+  constructor(result) {
+    this.setResult(result);
+  }
+
+  setResult(result) {
+    this.result = result;
+  }
+
+  getResult() {
+    return this.result;
+  }
+
+  free() {
+    delete this.result;
+  }
+}
 
 const main = async () => {
   const tableService = azure.createTableService(process.env["QUEUE_CONN_STR"]);
@@ -70,8 +88,16 @@ const main = async () => {
     }
   }
 
-  for await (let e of iterQuery(tableService, table, query, toJson)) {
-    insertResult(pool, getTable(e.Differ, e.GeometryType), e.GeometryId, e);
+  for await (let res of iterQuery(tableService, table, query, toJson)) {
+    const e = res.getResult();
+
+    await insertResult(
+      pool,
+      getTable(e.Differ, e.GeometryType),
+      e.GeometryId,
+      e
+    );
+    res.free();
   }
 };
 
