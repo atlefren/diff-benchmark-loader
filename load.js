@@ -80,7 +80,7 @@ const main = async () => {
   const table = "benchmarkresults4";
   const query = new azure.TableQuery().top(500);
   const differs = ["text", "geojson", "binary", "geom"];
-  const geomTypes = ["point", "linestring", "polygon"];
+  const geomTypes = ["point2", "linestring", "polygon"];
 
   for (const differ of differs) {
     for (const geomType of geomTypes) {
@@ -91,12 +91,14 @@ const main = async () => {
   for await (let res of iterQuery(tableService, table, query, toJson)) {
     const e = res.getResult();
 
-    await insertResult(
-      pool,
-      getTable(e.Differ, e.GeometryType),
-      e.GeometryId,
-      e
-    );
+    if (differs.includes(e.Differ) && geomTypes.includes(e.GeometryType)) {
+      await insertResult(
+        pool,
+        getTable(e.Differ, e.GeometryType),
+        e.GeometryId,
+        e
+      );
+    }
     res.free();
   }
 };
